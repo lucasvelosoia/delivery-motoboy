@@ -1,14 +1,18 @@
 package com.delivery.motoboy
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.*
 import android.provider.Settings
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -17,6 +21,10 @@ import com.google.android.gms.location.*
 import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.overlay.Marker
 import java.math.RoundingMode
 import java.net.URI
 
@@ -32,6 +40,11 @@ class MainActivity : AppCompatActivity() {
     private var ringtone: MediaPlayer? = null
     private var serverUrl = DEFAULT_SERVER_URL
 
+    // Mapa
+    private var mapMarker: Marker? = null
+    private var lastLat = 0.0
+    private var lastLng = 0.0
+
     companion object {
         private const val DEFAULT_SERVER_URL = "https://delivery-tracker-6crw.onrender.com"
         private const val PERM_LOCATION = 1001
@@ -45,6 +58,9 @@ class MainActivity : AppCompatActivity() {
             val location = result.lastLocation ?: return
             val deliveryId = currentDeliveryId ?: return
 
+            lastLat = location.latitude
+            lastLng = location.longitude
+
             socket?.emit("location-update-mobile", JSONObject().apply {
                 put("deliveryId", deliveryId)
                 put("lat", location.latitude)
@@ -55,12 +71,17 @@ class MainActivity : AppCompatActivity() {
                 val lat = location.latitude.toBigDecimal().setScale(5, RoundingMode.HALF_UP)
                 val lng = location.longitude.toBigDecimal().setScale(5, RoundingMode.HALF_UP)
                 binding.tvGpsStatus.text = "📡 $lat, $lng"
+                updateMap(location.latitude, location.longitude)
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // OSMDroid config
+        Configuration.getInstance().userAgentValue = packageName
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -79,14 +100,56 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        initMap()
         setupListeners()
         connectSocket()
+    }
+
+    private fun initMap() {
+        binding.mapView.apply {
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(16.0)
+        }
+    }
+
+    private fun updateMap(lat: Double, lng: Double) {
+        val point = GeoPoint(lat, lng)
+        if (mapMarker == null) {
+            mapMarker = Marker(binding.mapView).apply {
+                title = "Você está aqui"
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            }
+            binding.mapView.overlays.add(mapMarker)
+        }
+        mapMarker?.position = point
+        binding.mapView.controller.animateTo(point)
+        binding.mapView.invalidate()
+    }
+
+    private fun isGpsEnabled(): Boolean {
+        val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    }
+
+    private fun promptEnableGps() {
+        AlertDialog.Builder(this)
+            .setTitle("GPS desligado")
+            .setMessage("O GPS precisa estar ativado para rastrear sua localização durante a entrega.")
+            .setPositiveButton("Ativar GPS") { _, _ ->
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun connectSocket() {
         try {
             socket?.disconnect()
-            socket = IO.socket(URI.create(serverUrl))
+            val opts = IO.Options().apply {
+                transports = arrayOf("websocket", "polling")
+            }
+            socket = IO.socket(URI.create(serverUrl), opts)
 
             socket?.on(Socket.EVENT_CONNECT) {
                 runOnUiThread { binding.tvConnectionStatus.text = "● Conectado" }
@@ -150,18 +213,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnToggleOnline.setOnClickListener { toggleOnline() }
-
         binding.btnAccept.setOnClickListener { acceptRequest() }
-
         binding.btnDecline.setOnClickListener {
             stopAlertSound()
             hideRequestCard()
         }
-
         binding.btnFinishDelivery.setOnClickListener { finishDelivery() }
+        binding.btnOpenMaps.setOnClickListener { openGoogleMaps() }
     }
 
     private fun toggleOnline() {
+        if (!isOnline && !isGpsEnabled()) {
+            promptEnableGps()
+            return
+        }
         isOnline = !isOnline
         if (isOnline) {
             binding.ivStatusIcon.text = "🟢"
@@ -196,6 +261,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun acceptRequest() {
+        if (!isGpsEnabled()) {
+            promptEnableGps()
+            return
+        }
         val requestId = currentRequestId ?: return
         stopAlertSound()
         hideRequestCard()
@@ -242,8 +311,29 @@ class MainActivity : AppCompatActivity() {
     private fun finishDelivery() {
         stopLocationUpdates()
         currentDeliveryId = null
+        mapMarker = null
+        binding.mapView.overlays.clear()
+        binding.mapView.invalidate()
         binding.cardActiveDelivery.visibility = View.GONE
         binding.tvStatus.text = "Aguardando corridas..."
+    }
+
+    private fun openGoogleMaps() {
+        if (lastLat == 0.0 && lastLng == 0.0) {
+            toast("Aguardando localização GPS...")
+            return
+        }
+        val uri = Uri.parse("google.navigation:q=$lastLat,$lastLng&mode=d")
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage("com.google.android.apps.maps")
+        }
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        } else {
+            // Fallback: abre no browser
+            startActivity(Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://maps.google.com/?q=$lastLat,$lastLng")))
+        }
     }
 
     private fun playAlertSound() {
@@ -277,12 +367,10 @@ class MainActivity : AppCompatActivity() {
             @Suppress("DEPRECATION")
             getSystemService(VIBRATOR_SERVICE) as Vibrator
         }
-        val pattern = longArrayOf(0, 500, 150, 500, 150, 500)
-        vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 150, 500, 150, 500), 0))
     }
 
-    private fun toast(msg: String) =
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -291,6 +379,16 @@ class MainActivity : AppCompatActivity() {
             && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.mapView.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        binding.mapView.onPause()
     }
 
     override fun onDestroy() {
