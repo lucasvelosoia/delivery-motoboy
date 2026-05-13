@@ -1,0 +1,61 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle 8.4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Build Debug APK
+        run: gradle assembleDebug
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: motoboy-app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: "MotoApp — build mais recente"
+          allowUpdates: true
+          artifacts: app/build/outputs/apk/debug/app-debug.apk
+          body: |
+            ## 🛵 MotoApp — App do Motoboy
+
+            APK gerado automaticamente via GitHub Actions.
+
+            ### Como instalar no celular:
+            1. Baixe o arquivo `app-debug.apk` abaixo
+            2. No Android: **Configurações → Segurança → Fontes desconhecidas** (habilitar)
+            3. Abra o APK e toque em **Instalar**
+
+            > Build de desenvolvimento (debug) — não requer conta de desenvolvedor.
+          token: ${{ secrets.GITHUB_TOKEN }}

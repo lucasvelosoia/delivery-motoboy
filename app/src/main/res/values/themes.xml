@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MotoboyApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#25D366</item>
+        <item name="colorPrimaryVariant">#1A1A2E</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">#FF6B00</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+    </style>
+</resources>

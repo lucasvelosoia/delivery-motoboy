@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MotoApp — Baixar app</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1A1A2E 0%, #16213E 60%, #0F3460 100%);
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 24px 64px rgba(0,0,0,.4);
+    }
+
+    .icon { font-size: 64px; margin-bottom: 16px; }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #1A1A2E;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #25D366;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 50px;
+      padding: 16px 36px;
+      width: 100%;
+      margin-bottom: 12px;
+      transition: background .2s, transform .1s;
+    }
+    .btn-download:active { transform: scale(.97); }
+    .btn-download:hover  { background: #1ebe5a; }
+
+    .badge {
+      display: inline-block;
+      background: #F0FFF4;
+      color: #25D366;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 20px;
+      padding: 4px 12px;
+      margin-bottom: 28px;
+    }
+
+    .steps {
+      text-align: left;
+      background: #F7F9FC;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+
+    .steps h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.5;
+    }
+    .step:last-child { margin-bottom: 0; }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #1A1A2E;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #EEE;
+      margin: 20px 0;
+    }
+
+    .server-section h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .server-url {
+      background: #F0F4FF;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-family: monospace;
+      color: #1565C0;
+      word-break: break-all;
+    }
+
+    footer {
+      margin-top: 24px;
+      font-size: 11px;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="icon">🛵</div>
+  <h1>MotoApp</h1>
+  <p class="subtitle">App do motoboy — receba corridas em tempo real e envie sua localização para o cliente</p>
+
+  <span class="badge">✓ Android 8.0+</span>
+
+  <a id="btnDownload" class="btn-download" href="#" download>
+    ⬇ Baixar APK
+  </a>
+
+  <div class="steps">
+    <h3>Como instalar</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <span>Baixe o APK pelo botão acima</span>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <span>Vá em <strong>Configurações → Segurança → Fontes desconhecidas</strong> e habilite</span>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <span>Abra o arquivo baixado e toque em <strong>Instalar</strong></span>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <span>No app, informe o endereço do servidor e toque em <strong>Conectar</strong></span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="server-section">
+    <h3>Endereço do servidor</h3>
+    <div class="server-url" id="serverUrl">Configure em railway.app</div>
+  </div>
+
+  <footer>Build gerado automaticamente · GitHub Actions</footer>
+</div>
+
+<script>
+  // Detecta o owner/repo da URL do GitHub para montar o link do APK
+  // Fallback: deixa o botão com o link direto do GitHub Release
+  const GITHUB_REPO = 'lucasvelosoia/delivery-motoboy'; // ← substitua após criar o repo
+  const APK_URL = `https://github.com/${GITHUB_REPO}/releases/download/latest/app-debug.apk`;
+
+  document.getElementById('btnDownload').href = APK_URL;
+
+  // Mostra a URL do servidor se estiver no localStorage
+  const savedUrl = localStorage.getItem('server_url');
+  if (savedUrl) {
+    document.getElementById('serverUrl').textContent = savedUrl;
+  }
+</script>
+
+</body>
+</html>
