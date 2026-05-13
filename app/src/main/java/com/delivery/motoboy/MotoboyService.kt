@@ -61,7 +61,7 @@ class MotoboyService : Service() {
                 put("lat", loc.latitude)
                 put("lng", loc.longitude)
             })
-            sendBroadcast(Intent(BROADCAST_LOCATION).apply {
+            broadcast(Intent(BROADCAST_LOCATION).apply {
                 putExtra("lat", loc.latitude)
                 putExtra("lng", loc.longitude)
             })
@@ -82,7 +82,7 @@ class MotoboyService : Service() {
             ACTION_DECLINE -> {
                 stopAlertSound()
                 NotificationManagerCompat.from(this).cancel(NOTIF_REQUEST)
-                sendBroadcast(Intent(BROADCAST_REQUEST_TAKEN))
+                broadcast(Intent(BROADCAST_REQUEST_TAKEN))
             }
             ACTION_FINISH -> finishDelivery()
             else -> {
@@ -111,18 +111,18 @@ class MotoboyService : Service() {
             })
 
             socket?.on(Socket.EVENT_CONNECT) {
-                sendBroadcast(Intent(BROADCAST_CONNECTED))
+                broadcast(Intent(BROADCAST_CONNECTED))
                 updateServiceNotif("🟢 Online — aguardando corridas...")
             }
             socket?.on(Socket.EVENT_DISCONNECT) {
-                sendBroadcast(Intent(BROADCAST_DISCONNECTED))
+                broadcast(Intent(BROADCAST_DISCONNECTED))
                 updateServiceNotif("⚠️ Reconectando...")
             }
 
             socket?.on("new-delivery-request") { args ->
                 val data = args.getOrNull(0) as? JSONObject ?: return@on
                 currentRequestId = data.optString("requestId")
-                sendBroadcast(Intent(BROADCAST_NEW_REQUEST).apply {
+                broadcast(Intent(BROADCAST_NEW_REQUEST).apply {
                     putExtra(EXTRA_REQUEST_JSON, data.toString())
                 })
                 showRequestNotif(
@@ -137,7 +137,7 @@ class MotoboyService : Service() {
             socket?.on("request-taken") { _ ->
                 stopAlertSound()
                 NotificationManagerCompat.from(this).cancel(NOTIF_REQUEST)
-                sendBroadcast(Intent(BROADCAST_REQUEST_TAKEN))
+                broadcast(Intent(BROADCAST_REQUEST_TAKEN))
             }
 
             socket?.on("delivery-assigned") { args ->
@@ -147,7 +147,7 @@ class MotoboyService : Service() {
                 val deliveryId   = data.getString("deliveryId")
                 val trackingUrl  = data.getString("trackingUrl")
                 currentDeliveryId = deliveryId
-                sendBroadcast(Intent(BROADCAST_DELIVERY_ASSIGNED).apply {
+                broadcast(Intent(BROADCAST_DELIVERY_ASSIGNED).apply {
                     putExtra(EXTRA_DELIVERY_ID, deliveryId)
                     putExtra(EXTRA_TRACKING_URL, trackingUrl)
                 })
@@ -158,7 +158,7 @@ class MotoboyService : Service() {
             socket?.on("request-unavailable") { _ ->
                 stopAlertSound()
                 NotificationManagerCompat.from(this).cancel(NOTIF_REQUEST)
-                sendBroadcast(Intent(BROADCAST_REQUEST_UNAVAILABLE))
+                broadcast(Intent(BROADCAST_REQUEST_UNAVAILABLE))
             }
 
             socket?.connect()
@@ -179,7 +179,11 @@ class MotoboyService : Service() {
         stopLocationUpdates()
         currentDeliveryId = null
         updateServiceNotif("🟢 Online — aguardando corridas...")
-        sendBroadcast(Intent(BROADCAST_DELIVERY_FINISHED))
+        broadcast(Intent(BROADCAST_DELIVERY_FINISHED))
+    }
+
+    private fun broadcast(intent: Intent) {
+        sendBroadcast(intent.setPackage(packageName))
     }
 
     private fun startLocationUpdates() {
@@ -210,7 +214,9 @@ class MotoboyService : Service() {
 
     private fun mainPendingIntent() = PendingIntent.getActivity(
         this, 0,
-        Intent(this, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP },
+        Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        },
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
 
