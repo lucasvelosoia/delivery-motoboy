@@ -29,6 +29,11 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".MotoboyService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
     </application>
 
 </manifest>
