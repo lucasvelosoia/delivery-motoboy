@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
     private var serverUrl = DEFAULT_SERVER_URL
 
     companion object {
-        private const val DEFAULT_SERVER_URL = "http://10.0.2.2:3000"
+        private const val DEFAULT_SERVER_URL = "https://delivery-tracker-6crw.onrender.com"
         private const val PERM_LOCATION = 1001
         private const val PERM_NOTIFICATION = 1002
         private const val PREFS = "motoboy_prefs"
